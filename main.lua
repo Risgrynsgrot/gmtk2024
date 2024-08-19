@@ -191,6 +191,10 @@ function Miner:update(dt)
 	end
 end
 
+function Miner:draw(index)
+
+end
+
 Builder = {
 	cooldown = 1.0,
 }
@@ -219,22 +223,46 @@ end
 
 Ad = {
 	cooldown = 1.0,
-	money = 100
+	money = 100,
+	progress = 0,
+	speed = 30,
+	texts = {
+		"COME SEE THE ESCALATOR TO MOUNT MARK",
+		"BIGGEST ESCALATOR IN THIS AREA",
+		"I'M A BILLIONARE WITH WAY TOO MUCH MONEY"
+	}
 }
 
 function Ad:new()
 	local result = {
-		current_cooldown = Ad.cooldown
+		current_cooldown = Ad.cooldown,
+		id = #GameState.ads or 1,
+		x = 0,
+		y = 0
 	}
 
 	table.insert(GameState.ads, result)
 	setmetatable(result, self)
 	self.__index = self
+
+	result.y = 200
+
+	local text_index = love.math.random(#Ad.texts)
+	result.label = Label:new("ad_" .. #GameState.ads, result.x, result.y, Font.small, Ad.texts[text_index], { 1, 1, 1, 1 },
+		Button.text_alignment.Center)
+
 	return result
 end
 
 function Ad:update(dt)
 	self.current_cooldown = self.current_cooldown - dt
+	Ad.progress = Ad.progress + dt * 1 / self.speed
+	if Ad.progress >= 1.0 then
+		Ad.progress = Ad.progress - 2.0
+	end
+
+	local width, height = love.graphics.getDimensions()
+	self.x = Ad.progress * width * 2
 
 	if self.current_cooldown <= 0.0 then
 		self.current_cooldown = self.cooldown
@@ -242,14 +270,28 @@ function Ad:update(dt)
 	end
 end
 
-function Ad.draw()
-	local ad_size = 10 * #GameState.ads
-	Draw.line({
-		400, 500 + ad_size,
-		400, 500 - ad_size / 2
-	}, { 0.2, 0.2, 0.2, 1.0 }, 4)
+function Ad:draw()
+	local width, height = love.graphics.getDimensions()
 
-	Draw.rect(400 - ad_size / 2, 500 - ad_size / 2, ad_size, ad_size, {1, 0, 0, 1})
+	self.label.x = self.x
+	self.label.y = self.y
+	local ad_w = self.label.text_obj:getWidth()
+	local ad_h = self.label.text_obj:getHeight()
+	Draw.rect(self.x, self.y, ad_w, ad_h, { 1, 0, 0, 1 })
+	Draw.line({ self.x + ad_w, self.y, self.x + ad_w + 20, self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
+	Draw.line({ self.x + ad_w, self.y + ad_h, self.x + ad_w + 20, self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
+	Draw.line({
+		self.x + ad_w + 20,
+		self.y + ad_h / 2 - 20,
+		self.x + ad_w + 20 + 30,
+		self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 5)
+	Draw.line({
+		self.x + ad_w + 20 + 30,
+		self.y + ad_h / 2,
+		self.x + ad_w + 20,
+		self.y + ad_h / 2  + 20}, { 0.6, 0.6, 0.6, 0.6 }, 5)
+	Draw.rect(self.x + ad_w + 20, self.y, 35, ad_h + 5, { 0.5, 0.5, 0.5, 1 })
+	--self.label:align(Button.text_alignment.Center)
 end
 
 Transport = {
@@ -587,7 +629,9 @@ function love.draw()
 	Draw_metal_pile(GameState.metal, { 30, 450 })
 	Draw_metal_pile(GameState.transported_metal, { 500, 450 })
 
-	Ad.draw()
+	for _, v in pairs(GameState.ads) do
+		v:draw()
+	end
 
 	--escalator
 	local progress = GameState.metal_used / GameState.metal_required

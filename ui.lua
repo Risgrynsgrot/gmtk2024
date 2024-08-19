@@ -71,6 +71,7 @@ function Label:align(alignment)
 	self.x = math.floor(self.x)
 	self.y = math.floor(self.y)
 end
+
 function Label:new(id, x, y, font, text, color, alignment)
 	local text_obj = love.graphics.newText(font, text)
 	local result = {
