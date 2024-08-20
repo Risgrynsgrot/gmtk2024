@@ -10,9 +10,9 @@ Font = {}
 
 
 function Font:setup()
-	self.small = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 8)
-	self.medium = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 14)
-	self.large = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 30)
+	self.small = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 10)
+	self.medium = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 18)
+	self.large = love.graphics.newFont("assets/libertine/LinLibertine_R.ttf", 36)
 end
 
 function Button:new(id, x, y, w, h, label, font, on_click, bg, fg)

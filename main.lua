@@ -63,7 +63,7 @@ GameState = {
 
 Road = {
 	start = 100.0,
-	finish = 500.0,
+	finish = 900.0,
 	height = 500.0
 }
 
@@ -170,10 +170,13 @@ UI = {
 Miner = {
 	cooldown = 3.0,
 	mine_power = 10,
+	size = 10
 }
 function Miner:new()
 	local result = {
-		current_cooldown = Miner.cooldown
+		current_cooldown = Miner.cooldown,
+		position = { x = 250, y = 300 },
+		angle = 0
 	}
 	table.insert(GameState.miners, result)
 	setmetatable(result, self)
@@ -183,6 +186,7 @@ end
 
 function Miner:update(dt)
 	self.current_cooldown = self.current_cooldown - dt
+	self.angle = self.angle + dt * 3
 	if self.current_cooldown <= 0 then
 		self.current_cooldown = self.cooldown
 		local metal_to_mine = math.clamp(0, Miner.mine_power, GameState.metal_left)
@@ -192,11 +196,22 @@ function Miner:update(dt)
 end
 
 function Miner:draw(index)
+	local row_size = 5
+	local spacing = 5 + Miner.size
+	local col = ((index - 1) % row_size)
+	local row = (math.floor((index - 1) / row_size))
 
+
+	love.graphics.push()
+	love.graphics.translate(self.position.x + col * spacing, self.position.y + row * spacing)
+	love.graphics.rotate(self.angle)
+	Draw.rect(-Miner.size / 2, -Miner.size / 2, Miner.size, Miner.size, { 0.2, 0.2, 0.2, 1.0 })
+	love.graphics.pop()
 end
 
 Builder = {
 	cooldown = 1.0,
+	size = 4
 }
 function Builder:new()
 	local result = {
@@ -221,10 +236,27 @@ function Builder:update(dt)
 	end
 end
 
+function Lerp(start, finish, progress)
+	return start * (1.0 - progress) + (finish * progress)
+end
+
+function Builder:draw(index)
+	local builder_count = #GameState.builders
+	local progress = GameState.metal_used / GameState.metal_required
+
+	local start = { x = 830, y = 500 }
+	local y_end = 100 + (400 - progress * 400)
+	local finish = { x = 900, y = y_end }
+
+	local x = Lerp(start.x, finish.x, (index) / builder_count)
+	local y = Lerp(start.y, finish.y, (index) / builder_count)
+
+	Draw.rect(x, y, Builder.size, Builder.size, { 0, 0, 1, 1 })
+end
+
 Ad = {
 	cooldown = 1.0,
 	money = 100,
-	progress = 0,
 	speed = 30,
 	texts = {
 		"COME SEE THE ESCALATOR TO MOUNT MARK",
@@ -238,7 +270,8 @@ function Ad:new()
 		current_cooldown = Ad.cooldown,
 		id = #GameState.ads or 1,
 		x = 0,
-		y = 0
+		y = 0,
+		progress = 0,
 	}
 
 	table.insert(GameState.ads, result)
@@ -248,7 +281,8 @@ function Ad:new()
 	result.y = 200
 
 	local text_index = love.math.random(#Ad.texts)
-	result.label = Label:new("ad_" .. #GameState.ads, result.x, result.y, Font.small, Ad.texts[text_index], { 1, 1, 1, 1 },
+	result.label = Label:new("ad_" .. #GameState.ads, result.x, result.y, Font.small, Ad.texts[text_index],
+		{ 1, 1, 1, 1 },
 		Button.text_alignment.Center)
 
 	return result
@@ -256,13 +290,13 @@ end
 
 function Ad:update(dt)
 	self.current_cooldown = self.current_cooldown - dt
-	Ad.progress = Ad.progress + dt * 1 / self.speed
-	if Ad.progress >= 1.0 then
-		Ad.progress = Ad.progress - 2.0
+	self.progress = self.progress + dt * 1 / self.speed
+	if self.progress >= 1.0 then
+		self.progress = self.progress - 2.0
 	end
 
 	local width, height = love.graphics.getDimensions()
-	self.x = Ad.progress * width * 2
+	self.x = self.progress * width * 2
 
 	if self.current_cooldown <= 0.0 then
 		self.current_cooldown = self.cooldown
@@ -270,27 +304,32 @@ function Ad:update(dt)
 	end
 end
 
-function Ad:draw()
+function Ad:draw(index)
 	local width, height = love.graphics.getDimensions()
 
-	self.label.x = self.x
-	self.label.y = self.y
+	local spacing = 40
+
+	local x = self.x
+	local y = self.y + index * spacing
+
+	self.label.x = x
+	self.label.y = y
 	local ad_w = self.label.text_obj:getWidth()
 	local ad_h = self.label.text_obj:getHeight()
-	Draw.rect(self.x, self.y, ad_w, ad_h, { 1, 0, 0, 1 })
-	Draw.line({ self.x + ad_w, self.y, self.x + ad_w + 20, self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
-	Draw.line({ self.x + ad_w, self.y + ad_h, self.x + ad_w + 20, self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
+	Draw.rect(x, y, ad_w, ad_h, { 1, 0, 0, 1 })
+	Draw.line({ x + ad_w, y, x + ad_w + 20, y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
+	Draw.line({ x + ad_w, y + ad_h, x + ad_w + 20, y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 2)
 	Draw.line({
-		self.x + ad_w + 20,
-		self.y + ad_h / 2 - 20,
-		self.x + ad_w + 20 + 30,
-		self.y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 5)
+		x + ad_w + 20,
+		y + ad_h / 2 - 20,
+		x + ad_w + 20 + 30,
+		y + ad_h / 2 }, { 0.6, 0.6, 0.6, 0.6 }, 5)
 	Draw.line({
-		self.x + ad_w + 20 + 30,
-		self.y + ad_h / 2,
-		self.x + ad_w + 20,
-		self.y + ad_h / 2  + 20}, { 0.6, 0.6, 0.6, 0.6 }, 5)
-	Draw.rect(self.x + ad_w + 20, self.y, 35, ad_h + 5, { 0.5, 0.5, 0.5, 1 })
+		x + ad_w + 20 + 30,
+		y + ad_h / 2,
+		x + ad_w + 20,
+		y + ad_h / 2 + 20 }, { 0.6, 0.6, 0.6, 0.6 }, 5)
+	Draw.rect(x + ad_w + 20, y, 35, ad_h + 5, { 0.5, 0.5, 0.5, 1 })
 	--self.label:align(Button.text_alignment.Center)
 end
 
@@ -470,7 +509,7 @@ end
 function Load_UI()
 	local index = 0
 	for k, v in pairs(UI.buy_menu) do
-		Button:new(k, 100 + 150 * index, 40, 100, 64, v.text .. '\nPrice: ' .. v.cost(), Font.medium, v.func)
+		Button:new(k, 250 + 150 * index, 40, 120, 64, v.text .. '\nPrice: ' .. v.cost(), Font.medium, v.func)
 		index = index + 1
 	end
 
@@ -482,15 +521,17 @@ function Load_UI()
 end
 
 function love.load()
+	local success = love.window.setMode(1280, 720)
+
 	Font:setup()
 	Load_UI()
 
-	Shaders.drop_shadow = love.graphics.newShader(drop_shadow_shader)
+	--Shaders.drop_shadow = love.graphics.newShader(drop_shadow_shader)
 
 	GameState.metal_left = GameState.metal_start
 
 	local width, height = love.graphics.getDimensions()
-	local label = Label:new("win_screen", width / 2, height / 2, Font.large, "You win!", { 1, 1, 1, 1 })
+	local label = Label:new("win_screen", width / 2, height / 2, Font.large, "You made an escalator\nto the top of the mountain!!", { 1, 1, 1, 1 })
 	label.visible = false
 
 	-- for i = 1, 200 do
@@ -514,7 +555,7 @@ end
 
 function love.update(dt)
 	for _, v in ipairs(UI.stats) do
-		local to_print = string.format("%.2f", v.stat())
+		local to_print = string.format("%.0f", v.stat())
 		local label_id = v.label_id or v.label
 		Label.labels[label_id].text_obj:set(v.label .. ": " .. to_print)
 	end
@@ -584,14 +625,14 @@ end
 function Draw_mountains()
 	local from_mountain = {
 		100, 500,
-		300, 500,
-		200, 100 + (1 - (GameState.metal_left / GameState.metal_start)) * 400
+		400, 500,
+		250, 100 + (1 - (GameState.metal_left / GameState.metal_start)) * 400
 	}
 
 	local to_mountain = {
-		500, 500,
-		700, 500,
-		600, 100
+		800, 500,
+		1100, 500,
+		950, 100
 	}
 	love.graphics.setColor({ 0.7, 0.7, 0.7, 1.0 })
 
@@ -604,9 +645,9 @@ end
 function Draw_metal_pile(amount, position)
 	--metal pile
 	local metal_to_draw = math.floor(amount / 10)
-	local row_size = 40
-	local square_size = 2
-	local spacing = 1
+	local row_size = 10
+	local square_size = 4
+	local spacing = 2
 	local metal_pile_pos = position
 	local metal_color = { 0.6, 0.6, 0.6, 1 }
 	for i = 1, metal_to_draw do
@@ -623,30 +664,33 @@ end
 function love.draw()
 	love.graphics.clear(99 / 255, 155 / 255, 255 / 255, 1)
 
-	Draw.rect(0, 450, 1000, 1000, { 0, 0.5, 0, 1 })
+	Draw.rect(0, 450, 2000, 1000, { 0, 0.5, 0, 1 })
 
 	Draw_mountains()
 	Draw_metal_pile(GameState.metal, { 30, 450 })
 	Draw_metal_pile(GameState.transported_metal, { 500, 450 })
 
-	for _, v in pairs(GameState.ads) do
-		v:draw()
+	for k, v in pairs(GameState.ads) do
+		v:draw(k)
 	end
 
 	--escalator
 	local progress = GameState.metal_used / GameState.metal_required
 	Draw.line({
-		530, 500,
-		600, 100 + (400 - progress * 400)
+		830, 500,
+		900, 100 + (400 - progress * 400)
 	}, { 0.2, 0.2, 0.2, 1.0 }, 4)
 
 
 
-	--love.graphics.setShader(Shaders.drop_shadow)
 	for _, v in pairs(GameState.transports) do
 		v:draw()
-		--local transport_table = Debug.tprint(v)
-		--love.graphics.print(transport_table, 400, 400)
+	end
+	for k, v in pairs(GameState.miners) do
+		v:draw(k)
+	end
+	for k, v in pairs(GameState.builders) do
+		v:draw(k)
 	end
 	--love.graphics.setShader(Shaders.drop_shadow)
 
